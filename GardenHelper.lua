@@ -1,6 +1,6 @@
 _addon.name = 'GardenHelper'
 _addon.author = 'Shadowhammer'
-_addon.version = '2.32.0'
+_addon.version = '2.33.0'
 _addon.language = 'english'
 _addon.commands = {'gardenhelper', 'gh'}
 
@@ -5335,7 +5335,7 @@ local function show_help()
         '  inv - sell, drop, pop, send, rec, org;  drop / pop / send / rec / org - one step;  inv rebuild - re-sort ItemTable.lua after edits;  inv help - details',
         '=== Shared ===',
         '  memory [on|off|reset|status|gc|mark <note>] - memory used by every loaded addon (most on top, % vs. the oldest run), saved to memory_report.lua; on/off = also at the end of every full (saved); reset = clear memory_report.lua; gc = free GardenHelper\'s unused Lua memory now; mark <note> = marker line (per-character average starts over)',
-        '  update [check|force] [major|minor] - download the newest GardenHelper from GitHub (thrydwolfvalefor/gardenhelper), back up the old files in backup/ and reload. major = full tested releases, minor = smaller changes sooner (default: characters.lua update_branch, else major); check = only compare versions; force = install even if not newer. Never touches characters.lua, ItemTable*.lua, Mail.lua or data/',
+        '  update [check|force] [major|minor|previous|<version>|list] - download the newest GardenHelper from GitHub (thrydwolfvalefor/gardenhelper), back up the old files in backup/ and reload. major = full tested releases, minor = smaller changes sooner (default: characters.lua update_branch, else major); check = only compare versions; force = install even if not newer; previous = back to the release before yours (current one having issues); 2.32 = that version (newest 2.32.x); list = versions you can pick (v2.32.0 and up). Never touches characters.lua, ItemTable*.lua, Mail.lua or data/',
         '  stop (or abort) - stops after the current step (never mid-menu);  debug on|off - global, saved',
         'Active for this character: seed ' .. eff('seed') .. ', fertilizer ' .. eff('fertilizer') .. ' (' .. (eff('use_fertilizer') and 'ON' or 'OFF') .. '), wait ' .. math.floor(eff('fertilize_wait_time') / 60) .. ' min',
     }) do
@@ -6499,4 +6499,11 @@ state.storage.record_later(3)   -- v2.26.0: already logged in when loaded
     gathers items out of the other bags when PullFromBags = true. Backup:
     backup/GardenHelper v2.31.0 2026-11-21.lua, backup/inv v4.17.0 2026-11-21.lua,
     backup/characters v2.31.0 2026-11-21.lua.
+  v2.33.0 (2026-11-21) - Pick a version (Mark): //gh update previous goes
+    back to the release before yours (when the current one has issues);
+    //gh update 2.32 installs that version (newest 2.32.x; 2.32.0 = exact);
+    //gh update list shows them. Every release is tagged on GitHub
+    (vX.Y.Z) and these use the tags; v2.32.0 (first with //gh update) is
+    the oldest. Update.lua v1.2.0. Backup: backup/GardenHelper v2.32.0
+    2026-11-21.lua, backup/Update v1.1.0 2026-11-21.lua.
 ]]

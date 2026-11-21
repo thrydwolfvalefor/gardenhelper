@@ -10,6 +10,15 @@
 --                        or older (repair a broken install / roll back).
 --   Add major or minor to any of them to pick the branch for that run
 --   (e.g. //gh update minor, //gh update check minor).
+--   //gh update previous - go back to the release before yours (when the
+--                        current one is having issues).
+--   //gh update 2.32     - install that version (2.32 = the newest 2.32.x;
+--                        2.32.0 = exactly that one).
+--   //gh update list     - the versions you can pick.
+--   Every release is tagged on GitHub (v2.32.0, v2.33.0, ...); these use
+--   the tags, whichever branch they came from. Nothing older than v2.32.0
+--   (the first version with //gh update) - you'd be stuck on it. A plain
+--   //gh update afterwards brings you forward again.
 --
 -- Branches (v1.1.0):
 --   major - full releases, fully tested and validated. The default.
@@ -42,10 +51,12 @@
 -- =====================================================================
 
 return function(gh)
-    local M = {version = '1.1.0'}
+    local M = {version = '1.2.0'}
 
     local REPO_RAW = 'https://raw.githubusercontent.com/thrydwolfvalefor/gardenhelper/'
     local BRANCHES = {major = true, minor = true}
+    local TAGS_URL = 'https://api.github.com/repos/thrydwolfvalefor/gardenhelper/tags?per_page=100'
+    local MIN_VERSION = '2.32.0'   -- the first release with //gh update
 
     -- characters.lua update_branch, or 'major'.
     local function default_branch()
@@ -157,10 +168,51 @@ return function(gh)
         if not exists then pcall(windower.create_dir, full) end
     end
 
-    local function do_update(mode, branch)
+    -- Released versions on GitHub (tags vX.Y.Z), newest first, only those
+    -- at or above MIN_VERSION. nil + error if GitHub can't be read.
+    local function fetch_versions()
+        local body, err = http_get(TAGS_URL)
+        if not body then return nil, err end
+        local list, seen = {}, {}
+        for name in body:gmatch('"name"%s*:%s*"v?(%d+%.%d+%.%d+)"') do
+            if not seen[name] and ver_cmp(name, MIN_VERSION) >= 0 then
+                seen[name] = true
+                table.insert(list, name)
+            end
+        end
+        table.sort(list, function(a, b) return ver_cmp(a, b) > 0 end)
+        return list
+    end
+
+    -- 'previous' or '2.32' / '2.32.0' -> the version to install, or nil + why.
+    local function pick_version(want)
+        local list, err = fetch_versions()
+        if not list then return nil, 'could not read the version list from GitHub (' .. tostring(err) .. ')' end
+        if #list == 0 then return nil, 'GitHub has no tagged releases yet' end
         local current = _addon.version
-        local base = REPO_RAW .. branch .. '/'
-        gh.log('Update: checking GitHub (thrydwolfvalefor/gardenhelper, ' .. branch .. ' branch)...')
+        if want == 'previous' then
+            for _, v in ipairs(list) do
+                if ver_cmp(v, current) < 0 then return v end
+            end
+            return nil, 'no release older than v' .. current .. ' to go back to (oldest you can pick: v' .. list[#list] .. ')'
+        end
+        local parts = select(2, want:gsub('%.', '')) + 1
+        for _, v in ipairs(list) do
+            if v == want or (parts < 3 and (v .. '.'):sub(1, #want + 1) == want .. '.') then return v end
+        end
+        if ver_cmp(want, MIN_VERSION) < 0 then
+            return nil, 'v' .. want .. ' is older than v' .. MIN_VERSION .. ', the first version with //gh update - it can\'t be installed this way'
+        end
+        return nil, 'no release v' .. want .. ' on GitHub. Versions: ' .. table.concat(list, ', ')
+    end
+
+    -- ref = a branch name or a tag ('v2.32.0'); pinned = a version the
+    -- player picked (installed even if older, no "newer?" check).
+    local function do_update(mode, ref, pinned)
+        local current = _addon.version
+        local branch = ref
+        local base = REPO_RAW .. ref .. '/'
+        gh.log('Update: checking GitHub (thrydwolfvalefor/gardenhelper, ' .. (pinned and ref or (ref .. ' branch')) .. ')...')
         local text, err = http_get(base .. 'manifest.txt')
         if not text then
             gh.error_log('Update: could not read manifest.txt from GitHub (' .. tostring(err) .. ').')
@@ -172,7 +224,13 @@ return function(gh)
             return
         end
         local cmp = ver_cmp(man.version, current)
-        if mode == 'check' then
+        if pinned then
+            if cmp == 0 and mode ~= 'force' then
+                gh.log('Update: you already have v' .. current .. '. //gh update force ' .. man.version .. ' reinstalls it.')
+                return
+            end
+            gh.log('Update: installing v' .. man.version .. ' (you have v' .. current .. ').')
+        elseif mode == 'check' then
             if cmp > 0 then
                 gh.log('Update: v' .. man.version .. ' is on the ' .. branch .. ' branch (you have v' .. current .. '). //gh update' .. (branch ~= default_branch() and (' ' .. branch) or '') .. ' installs it.')
             elseif cmp == 0 then
@@ -182,7 +240,7 @@ return function(gh)
             end
             return
         end
-        if cmp <= 0 and mode ~= 'force' then
+        if not pinned and cmp <= 0 and mode ~= 'force' then
             gh.log('Update: already up to date (v' .. current .. (cmp < 0 and (', ' .. branch .. ' has v' .. man.version) or '') .. '). //gh update force' .. (branch ~= default_branch() and (' ' .. branch) or '') .. ' installs the ' .. branch .. ' copy anyway.')
             return
         end
@@ -264,34 +322,66 @@ return function(gh)
         if #skipped > 0 then
             gh.log('Update: left your own file(s) alone: ' .. table.concat(skipped, ', ') .. '.')
         end
-        gh.log('Update: downloaded v' .. man.version .. ' from ' .. branch .. ' (' .. changed .. ' file(s) changed, old copies in backup/) - reloading...')
+        gh.log('Update: downloaded v' .. man.version .. (pinned and '' or (' from ' .. branch)) .. ' (' .. changed .. ' file(s) changed, old copies in backup/) - reloading...')
         write_file(path(NOTIFY_FILE), current)
         coroutine.schedule(function() windower.send_command('lua r gardenhelper') end, 0.5)
     end
 
-    -- //gh update [check|force] [major|minor]
+    -- //gh update [check|force] [major|minor|previous|<version>|list]
     function M.command(args)
-        local sub, branch = '', nil
+        local sub, branch, want = '', nil, nil
         for i = 2, #args do
             local a = tostring(args[i]):lower()
             if a == 'help' then
-                gh.log('//gh update [major|minor] - install the newest release from that GitHub branch and reload (default: characters.lua update_branch, now ' .. default_branch() .. '); check = only compare versions; force = install it even if not newer. major = full tested releases, minor = smaller changes sooner. characters.lua, ItemTable*.lua, Mail.lua and data/ are never touched.')
+                gh.log('//gh update [major|minor] - install the newest release from that GitHub branch and reload (default: characters.lua update_branch, now ' .. default_branch() .. '); check = only compare versions; force = install it even if not newer. major = full tested releases, minor = smaller changes sooner. //gh update previous = back to the release before yours; //gh update 2.32 = that version (newest 2.32.x); //gh update list = versions you can pick. characters.lua, ItemTable*.lua, Mail.lua and data/ are never touched.')
+                return
+            elseif a == 'list' or a == 'versions' then
+                local list, err = fetch_versions()
+                if not list then
+                    gh.error_log('Update: could not read the version list from GitHub (' .. tostring(err) .. ').')
+                elseif #list == 0 then
+                    gh.log('Update: no tagged releases on GitHub yet.')
+                else
+                    gh.log('Update: versions you can pick (newest first): ' .. table.concat(list, ', ') .. '. You have v' .. _addon.version .. '.')
+                end
                 return
             elseif a == 'check' or a == 'force' then
                 sub = a
             elseif BRANCHES[a] then
                 branch = a
+            elseif a == 'previous' or a == 'prev' or a == 'back' then
+                want = 'previous'
+            elseif a:match('^v?%d+%.%d+$') or a:match('^v?%d+%.%d+%.%d+$') then
+                want = a:gsub('^v', '')
             else
-                gh.error_log('Update: unknown option "' .. a .. '" - use //gh update [check|force] [major|minor].')
+                gh.error_log('Update: unknown option "' .. a .. '" - use //gh update [check|force] [major|minor|previous|<version>|list].')
                 return
             end
+        end
+        if want and branch then
+            gh.error_log('Update: pick a branch or a version, not both.')
+            return
+        end
+        if want and sub == 'check' then
+            gh.error_log('Update: check compares with a branch - use //gh update list to see the versions.')
+            return
         end
         branch = branch or default_branch()
         if sub ~= 'check' and gh.state.running then
             gh.log('Update: GardenHelper is running something - //gh stop first, then //gh update.')
             return
         end
-        local ok, err = pcall(do_update, sub, branch)
+        local ok, err
+        if want then
+            local v, why = pick_version(want)
+            if not v then
+                gh.error_log('Update: ' .. why .. '.')
+                return
+            end
+            ok, err = pcall(do_update, sub, 'v' .. v, true)
+        else
+            ok, err = pcall(do_update, sub, branch)
+        end
         if not ok then
             gh.error_log('Update: failed (' .. tostring(err) .. ') - nothing was reloaded.')
         end
