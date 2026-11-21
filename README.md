@@ -47,7 +47,12 @@ in `backup/` and reloads. `//gh update check` only compares versions; `//gh upda
 GitHub's copy. The repo has two branches: **major** (full releases, fully tested and validated - the
 default) and **minor** (smaller changes, out sooner, less tested). Set `update_branch = 'minor'` in
 `characters.lua` to follow minor, or add `major` / `minor` to any update command for one run
-(`//gh update minor`, `//gh update check minor`). Your own files - `characters.lua`, `ItemTable.lua`, `ItemTable_*.lua`, `Mail.lua`,
+(`//gh update minor`, `//gh update check minor`).
+
+If a release gives you trouble, `//gh update previous` goes back to the release before yours, and
+`//gh update 2.32` installs a given version (the newest 2.32.x; `2.32.0` = exactly that one).
+`//gh update list` shows the versions you can pick (v2.32.0, the first with `//gh update`, is the
+oldest). A plain `//gh update` later brings you forward again. Your own files - `characters.lua`, `ItemTable.lua`, `ItemTable_*.lua`, `Mail.lua`,
 `memory_report.lua` and `data/` - are never touched; new settings a release adds to them are
 described in `CHANGELOG.md`.
 
