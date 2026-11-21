@@ -4242,12 +4242,13 @@ time - GardenHelper's own changelog starts fresh below.
 - `//gh update previous` (also `prev`, `back`) - installs the newest release older than yours, for when the current
   one is having issues. `//gh update 2.32` - the newest 2.32.x; `//gh update 2.32.0` - exactly that one (a leading
   `v` is fine). `force` reinstalls the version you already have. `//gh update list` - the versions you can pick.
-- Versions come from the repo's tags (`vX.Y.Z`, one per release, whichever branch) via the GitHub API; files are read
-  from the tag, so no cache trouble. Not below v2.32.0 (the first release with `//gh update` - older ones would
+- Versions come from the repo's branches and tags named `vX.Y.Z` (one per release, whichever of major / minor it
+  went to) via the GitHub API; files are read from that ref. Releases are published as `vX.Y.Z` branches (tags
+  can't be pushed from Claude's side); a tag / GitHub Release named `vX.Y.Z` works the same. Not below v2.32.0 (the first release with `//gh update` - older ones would
   leave you without it).
 - Picking a branch and a version together is refused; `check` works with branches only.
 - Update.lua v1.2.0. Tested outside the game against a fake GitHub (list, previous x2, at the oldest, 2.33 / 2.33.0
   / v2.32.0, too old, unknown, already on it, force, branch+version, check+version). Untested live.
-- Published to the minor branch; tags v2.32.0 and v2.33.0 created.
+- Published to the minor branch, plus version branches v2.32.0 and v2.33.0.
 - Backup: backup/GardenHelper v2.32.0 2026-11-21.lua, backup/Update v1.1.0 2026-11-21.lua,
   backup/README v2.32.0 2026-11-21.md, backup/CHANGELOG v2.32.0 2026-11-21.md.

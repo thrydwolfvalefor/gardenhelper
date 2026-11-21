@@ -15,8 +15,9 @@
 --   //gh update 2.32     - install that version (2.32 = the newest 2.32.x;
 --                        2.32.0 = exactly that one).
 --   //gh update list     - the versions you can pick.
---   Every release is tagged on GitHub (v2.32.0, v2.33.0, ...); these use
---   the tags, whichever branch they came from. Nothing older than v2.32.0
+--   Every release is kept on GitHub under its version - a branch (or a
+--   tag / GitHub Release) named v2.32.0, v2.33.0, ...; these use those,
+--   whichever of major / minor the release went to. Nothing older than v2.32.0
 --   (the first version with //gh update) - you'd be stuck on it. A plain
 --   //gh update afterwards brings you forward again.
 --
@@ -55,7 +56,11 @@ return function(gh)
 
     local REPO_RAW = 'https://raw.githubusercontent.com/thrydwolfvalefor/gardenhelper/'
     local BRANCHES = {major = true, minor = true}
-    local TAGS_URL = 'https://api.github.com/repos/thrydwolfvalefor/gardenhelper/tags?per_page=100'
+    -- Release versions: branches and tags named vX.Y.Z.
+    local VERSION_LIST_URLS = {
+        'https://api.github.com/repos/thrydwolfvalefor/gardenhelper/branches?per_page=100',
+        'https://api.github.com/repos/thrydwolfvalefor/gardenhelper/tags?per_page=100',
+    }
     local MIN_VERSION = '2.32.0'   -- the first release with //gh update
 
     -- characters.lua update_branch, or 'major'.
@@ -168,18 +173,26 @@ return function(gh)
         if not exists then pcall(windower.create_dir, full) end
     end
 
-    -- Released versions on GitHub (tags vX.Y.Z), newest first, only those
-    -- at or above MIN_VERSION. nil + error if GitHub can't be read.
+    -- Released versions on GitHub (branches / tags vX.Y.Z), newest first,
+    -- only those at or above MIN_VERSION. nil + error if GitHub can't be
+    -- read at all.
     local function fetch_versions()
-        local body, err = http_get(TAGS_URL)
-        if not body then return nil, err end
-        local list, seen = {}, {}
-        for name in body:gmatch('"name"%s*:%s*"v?(%d+%.%d+%.%d+)"') do
-            if not seen[name] and ver_cmp(name, MIN_VERSION) >= 0 then
-                seen[name] = true
-                table.insert(list, name)
+        local list, seen, read_any, last_err = {}, {}, false, nil
+        for _, url in ipairs(VERSION_LIST_URLS) do
+            local body, err = http_get(url)
+            if body then
+                read_any = true
+                for name in body:gmatch('"name"%s*:%s*"v(%d+%.%d+%.%d+)"') do
+                    if not seen[name] and ver_cmp(name, MIN_VERSION) >= 0 then
+                        seen[name] = true
+                        table.insert(list, name)
+                    end
+                end
+            else
+                last_err = err
             end
         end
+        if not read_any then return nil, last_err end
         table.sort(list, function(a, b) return ver_cmp(a, b) > 0 end)
         return list
     end
@@ -188,7 +201,7 @@ return function(gh)
     local function pick_version(want)
         local list, err = fetch_versions()
         if not list then return nil, 'could not read the version list from GitHub (' .. tostring(err) .. ')' end
-        if #list == 0 then return nil, 'GitHub has no tagged releases yet' end
+        if #list == 0 then return nil, 'GitHub has no release versions yet' end
         local current = _addon.version
         if want == 'previous' then
             for _, v in ipairs(list) do
@@ -340,7 +353,7 @@ return function(gh)
                 if not list then
                     gh.error_log('Update: could not read the version list from GitHub (' .. tostring(err) .. ').')
                 elseif #list == 0 then
-                    gh.log('Update: no tagged releases on GitHub yet.')
+                    gh.log('Update: no release versions on GitHub yet.')
                 else
                     gh.log('Update: versions you can pick (newest first): ' .. table.concat(list, ', ') .. '. You have v' .. _addon.version .. '.')
                 end

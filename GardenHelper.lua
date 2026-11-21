@@ -6502,8 +6502,8 @@ state.storage.record_later(3)   -- v2.26.0: already logged in when loaded
   v2.33.0 (2026-11-21) - Pick a version (Mark): //gh update previous goes
     back to the release before yours (when the current one has issues);
     //gh update 2.32 installs that version (newest 2.32.x; 2.32.0 = exact);
-    //gh update list shows them. Every release is tagged on GitHub
-    (vX.Y.Z) and these use the tags; v2.32.0 (first with //gh update) is
-    the oldest. Update.lua v1.2.0. Backup: backup/GardenHelper v2.32.0
+    //gh update list shows them. Every release is kept on GitHub under a
+    branch (or tag / GitHub Release) named vX.Y.Z and these use those;
+    v2.32.0 (first with //gh update) is the oldest. Update.lua v1.2.0. Backup: backup/GardenHelper v2.32.0
     2026-11-21.lua, backup/Update v1.1.0 2026-11-21.lua.
 ]]

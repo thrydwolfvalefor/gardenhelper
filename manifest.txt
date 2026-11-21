@@ -1,12 +1,12 @@
 version=2.33.0
-file=GardenHelper.lua 316211
+file=GardenHelper.lua 316251
 file=CHANGELOG-inv.md 19660
-file=CHANGELOG.md 282559
+file=CHANGELOG.md 282730
 file=LICENSE 1068
 file=README.md 27874
 file=SampleMail.txt 3656
 file=Set_RoE.lua 13804
-file=Update.lua 19486
+file=Update.lua 20035
 file=assistants.lua 23589
 file=books.lua 16440
 file=crystals.lua 23146
